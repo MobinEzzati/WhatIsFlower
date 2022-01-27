@@ -10,17 +10,22 @@ import CoreML
 import Vision
 import SwiftyJSON
 import Alamofire
+import Kingfisher
 
 class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    
+    @IBOutlet weak var flowerDescription: UILabel!
     @IBOutlet weak var imageView: UIImageView!
     let imagePicker = UIImagePickerController()
-    let wikipediaURl = "https://en.wikipedia.org/w/api.php?format=json&action= query"
+    let wikipediaURl = "https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro&explaintext&redirects=1&titles=Trumpet_creeper"
     
     override func viewDidLoad() {
         super.viewDidLoad()
         imagePicker.delegate = self
         imagePicker.sourceType = .camera
         imagePicker.allowsEditing = false
+
+        
         navigationController?.navigationBar.backgroundColor = .magenta
             
     }
@@ -56,7 +61,9 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
             }
             if let firstRes = results.first{
                 self.navigationController?.navigationBar.topItem?.title = "\(firstRes.identifier)"
+                self.requestInfo(flowerName: firstRes.identifier)
             }
+            
         }
         
         let handler = VNImageRequestHandler(ciImage: image)
@@ -68,10 +75,43 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         }
     }
     
-    func requestInfo(){
+    func requestInfo(flowerName : String){
+        let parameters : [String:String] = [
+        "format" : "json",
+        "action" : "query",
+        "prop" : "extracts|pageimages",
+        "exintro" : "",
+        "explaintext" : "",
+        "redirects" : "1",
+        "titles" : flowerName,
+        "pithumbsize" : "500"
+       
+        ]
+    
+        AF.request(wikipediaURl, method: .get, parameters: parameters).validate().responseJSON { respone  in
+            switch respone.result {
+                
+            case .success(_):
+                let json = try! JSON(data: respone.data!)
+                let pageId = json["query"]["pages"].dictionaryValue.keys.first!
+                let description = json["query"]["pages"]["\(String(pageId))"]["extract"].stringValue
+                let imageUrl = json["query"]["pages"]["\(String(pageId))"]["thumbnail"]["source"].stringValue
+                self.flowerDescription.text = description
+                self.imageView.kf.setImage(with:URL(string: imageUrl))
+                
+                break
+            case .failure(let error ):
+                print(error)
+            }
+
+        }
+    
         
+        }
+        
+
     }
 
 
-}
+
 
